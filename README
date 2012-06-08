@@ -1,0 +1,89 @@
+BXluatool パッケージ
+
+LuaLaTeX 上の Lua プログラミングを支援する種々のパッケージの集まり
+
+■ 対応環境
+
+    ・LuaLaTeX（LuaTeX 0.65 版以降）
+    ・前提パッケージは各パッケージの解説を参照。
+
+■ インストール
+
+    TDS 1.1 に従ったシステムでは、各ファイルを次の場所に移動する。
+    ・*.sty, *.lua, *.def → $TEXMF/tex/lualatex/BXluatool/
+
+----------------------------------------
+
+■ bxluatool パッケージ
+
+    後述の 3 つのパッケージをすべて読み込む。
+
+■ bxluafacade パッケージ
+
+    主に LaTeX と Lua の間のインタフェースに関わる機能を提供する。
+    luacode パッケージを補足する役割。
+
+    詳細は解説文書 bxluafacade-ja.pdf を参照。
+
+■ bxluavienv パッケージ
+
+    中身を verbatim に処理するような LaTeX 環境の定義を容易にする。
+    「環境の中身を Lua の関数に渡して処理させる」ことを想定している。
+
+    詳細は解説文書 bxluavienv-ja.pdf を参照。
+
+■ bxluatangle パッケージ
+
+    Lua の実行コンテキストの途中で、それまで（tex.print() 等で）TeX 側
+    に書き出したコードの実行を完了させることを可能にする。
+
+    詳細は解説文書 bxluatangle-ja.pdf を参照。
+
+----------------------------------------
+
+■ 更新履歴
+
+Version 0.2c <2012/06/05>
+  - 最初の公開版。
+
+==================================================
+BXluatool package
+
+A bundle of LaTeX packages that help programming in Lua on LuaLaTeX
+
+* REQUIRED ENVIRONMENT
+
+    - LuaLaTeX (with LuaTeX >= v0.65)
+    - Prerequisite packages differ among packages.
+
+* INSTALLATION
+
+    - *.sty, *.lua, *.def -> $TEXMF/tex/lualatex/BXluatool/
+
+----------------------------------------
+
+* bxluatool package
+
+    It loads the all three packages mentioned below.
+
+* bxluafacade package
+
+    It provides functions on interface between LaTeX and Lua, and
+    complements the function of luacode package.
+
+* bxluavienv package
+
+    It facilitates the definition of LaTeX-environments that process
+    their content verbatim.
+
+* bxluatangle package
+
+    It enables one to finish the execution of TeX code that was then
+    written out by use of tex.print() inside Lua contexts.
+
+==================================================
+八登 崇之 (Takayuki YATO; aka. "Z.R.")
+En toi Pythmeni tes TeXnopoleos ～電脳世界の奥底にて～
+http://zrbabbler.sp.land.to/
+マクロツイーター
+http://d.hatena.ne.jp/zrbabbler/

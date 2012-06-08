@@ -1,0 +1,171 @@
+% 文字コードは UTF-8
+% lualatex で組版する（LuaTeX-ja 使用）
+\documentclass[a4paper]{ltjsarticle}
+\usepackage{shortvrb}
+\newcommand{\PkgVersion}{0.2}
+\newcommand{\PkgDate}{2012/06/05}
+\MakeShortVerb{\|}
+\newcommand{\Pkg}[1]{\textsf{#1}}
+\newcommand{\Meta}[1]{$\langle$\mbox{}#1\mbox{}$\rangle$}
+\newcommand{\Note}{\par\noindent ※}
+\newcommand{\Means}{~：\quad}
+\newcommand{\Expl}{\par\noindent 例：\ }
+\newcommand{\Jemph}{\textbf}
+\newcommand{\Typ}[1]{\textsl{#1}}
+\newcommand{\Var}[1]{\textit{#1}}
+\newcommand{\NumberT}{\Typ{number}}
+\newcommand{\NumVar}{\NumberT\ \Var}
+\newcommand{\StringT}{\Typ{string}}
+\newcommand{\StrVar}{\StringT\ \Var}
+\newcommand{\BooleanT}{\Typ{boolean}}
+\newcommand{\BoolVar}{\BooleanT\ \Var}
+\newcommand{\TableT}{\Typ{table}}
+\newcommand{\TabVar}{\TableT\ \Var}
+\newcommand{\GluespecT}{\Typ{gluespec}}
+\newcommand{\GlueVar}{\GluespecT\ \Var}
+%-----------------------------------------------------------
+\begin{document}
+\title{\Pkg{bxluatangle} パッケージ（v\PkgVersion）}
+\author{八登崇之\ （Takayuki YATO; aka.~``ZR''）}
+\date{\PkgDate}
+\maketitle
+
+%===========================================================
+\section{概要}
+\label{sec:overview}
+
+本パッケージは以下の機能を提供する。
+\begin{itemize}
+\item Luaの実行コンテキストの途中で、
+  それまで |tex.print()| 等で{\TeX}側に書き出したコードの
+  実行を完了させる。
+\end{itemize}
+
+\paragraph{前提環境}
+\begin{itemize}
+\item {\TeX}フォーマット： Lua{\LaTeX}
+\end{itemize}
+
+\paragraph{依存パッケージ}
+\begin{itemize}
+\item \Pkg{luatexbase} パッケージ
+\item \Pkg{luacode} パッケージ
+\end{itemize}
+
+%===========================================================
+\section{パッケージの読込}
+\label{sec:load}
+
+|\usepackage| で読み込む。
+オプションはない。
+\begin{verbatim}
+\usepackage{bxluatangle}
+\end{verbatim}
+
+%===========================================================
+\section{動機}
+\label{sec:motivation}
+
+例えば、あるLua関数の実行の中で、
+与えられたテキストを組版した時の幅と
+与えられた長さとの大小により
+処理を分ける必要があったとする。
+この状況を抽出して、次のようなコードを考えてみる。
+（\Pkg{luacode}および\Pkg{bxluafacade}の読込を前提とする。）
+
+\begin{quote}\small\begin{verbatim}
+\setlength{\reswidth} % 長さ変数
+\newcommand{\widthtest}[2]{\directlua{
+  width_test(\luastringN{#1}, \luastringN{#2})
+}}
+\begin{luacode*}
+-- text: テキスト
+-- thr: 長さ
+function width_test(text, thr)
+  local thr_val = bxlt.to_dimen(thr)
+  -- TeX の \settowidth を用いて幅を得る
+  tex.print("\\settowidth{\reswidth}{"..text.."}")
+  -- 【ここで一旦TeXの実行を完了させたい】
+  if bxlt.length.reswidth.width <= thr_val then
+    print("short!")
+  else
+    pritn("long!")
+  end
+end
+\end{luacode*}
+\end{verbatim}\end{quote}
+
+上掲のコードはこのままでは正常に動作しない。
+|tex.print()| で |\settowidth| 命令を書き出しているが、
+実際にそれが実行されるのは、|width_test()| を呼び出している\ 
+|\directlua| が終了してからである。
+
+従って、通常は、こういう処理をしようと思うと、
+「{\TeX}の実行を完了させる必要がある箇所」
+で一旦Luaの処理を中断できるようにプログラムを工夫する
+必要が生じる。
+仮にその箇所が深いループの中だったりすると
+その実現は困難を極めることになる。
+
+本パッケージを用いると、
+今の要望が次のようにして実現できる。
+
+\begin{quote}\small\begin{verbatim}
+\setlength{\reswidth}
+\newcommand{\widthtest}[2]{\tangleluaexec{% tangle付で実行
+  width_test(\luastringN{#1}, \luastringN{#2})
+}}
+\begin{luacode*}
+function width_test(text, thr)
+  local thr_val = bxlt.to_dimen(thr)
+  tex.print("\\settowidth{\reswidth}{"..text.."}")
+  bxlt.run_tex()
+  if bxlt.length.reswidth.width <= thr_val then
+    print("short!")
+  else
+    pritn("long!")
+  end
+end
+\end{luacode*}
+\end{verbatim}\end{quote}
+
+すなわち、Luaの実行を開始するときに、
+通常の |\luadirect| でなく |\tangleluaexec| を用いる
+（これを「tangle付でLuaを実行する」と呼ぶ）。
+「tangle付」のLuaの実行の中では、|bxlt.run_tex()|
+を任意の箇所で呼び出して、
+それまでに |tex.print()| で書き出したコードを
+実行させることができるようになる。
+
+%===========================================================
+\section{基本的な機能}
+\label{sec:basic}
+\newcommand*\Cs[1]{\texttt{\symbol{`\\}#1}}
+
+{\LaTeX}側の機能。
+
+\begin{itemize}
+\item |\tangleluaexec{|\Meta{Luaコード}|}|\Means
+  \Pkg{luaexec}の |\luaexec| と同じコード記述規定で、
+  tangle付でLuaコードを実行する。
+  元々 |\directlua| で呼び出していたコードをtangle付にする
+  場合にもこれを用いる。
+  \footnote{ただし、\Cs{tangleluaexec} は \Cs{directlua}
+    と異なり展開可能ではない。
+    現状の実装方法では、tangle付の実行は展開可能にはできない。}
+\item |tangleluacode| 環境\Means
+  \Pkg{luaexec}の |luacode| と同じコード記述規定で、
+  tangle付でLuaコードを実行する。
+\item |tangleluacode*| 環境\Means
+  \Pkg{luaexec}の |luacode*| と同じコード記述規定で、
+  tangle付でLuaコードを実行する。
+\end{itemize}
+
+Lua側の機能。
+
+\begin{itemize}
+\item |bxlt.run_tex()|\Means
+  それまでに書き出された{\TeX}コードの実行を完了させる。
+\end{itemize}
+
+\end{document}

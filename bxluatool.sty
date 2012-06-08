@@ -1,0 +1,24 @@
+%
+% bxluatool.sty
+%
+
+%% package declaration
+\NeedsTeXFormat{LaTeX2e}
+\ProvidesPackage{bxluatool}[2012/06/05 v0.2c]
+\input{bxluatool.def}
+\bxltRequireLaTeX
+
+%% preparation
+\def\bxltz@pkgname{bxluatool}
+\def\bxltz@error{\PackageError\bxltz@pkgname}
+% prerequisite packages
+\RequirePackage{luatexbase}
+
+%--------------------------------------- load all subpackages
+\RequirePackage{bxluafacade}
+\RequirePackage{bxluavienv}
+\RequirePackage{bxluatangle}
+
+%--------------------------------------- done
+\endinput
+%% EOF

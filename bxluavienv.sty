@@ -1,0 +1,181 @@
+%
+% bxluavienv.sty
+%
+
+%% package declaration
+\NeedsTeXFormat{LaTeX2e}
+\ProvidesPackage{bxluavienv}[2012/06/05 v0.2c]
+\input{bxluatool.def}
+\bxltRequireLaTeX
+
+%% preparation
+\def\bxltv@pkgname{bxluavienv}
+\def\bxltv@error{\PackageError\bxltv@pkgname}
+% prerequisite packages
+\RequirePackage{etoolbox}
+\RequirePackage{luatexbase-regs}
+\RequirePackage{luatexbase-cctb}
+%
+\edef\bxltv@restore@codes{%
+\catcode33=\the\catcode33%
+\catcode34=\the\catcode34%
+\catcode45=\the\catcode45%
+\catcode46=\the\catcode46%
+\catcode47=\the\catcode47%
+\catcode58=\the\catcode58%
+\catcode60=\the\catcode60%
+\catcode62=\the\catcode62%
+\catcode94=\the\catcode94%
+\catcode126=\the\catcode126%
+\endlinechar=\the\endlinechar%
+\relax}
+\catcode33=12% <!>
+\catcode34=12% <">
+\catcode45=12% <->
+\catcode46=12% <.>
+\catcode47=12% </>
+\catcode58=12% <:>
+\catcode60=12% <<>
+\catcode62=12% <>>
+\catcode94=7% <^>
+\catcode126=13% <~>
+\endlinechar=-1 %
+
+%---------------------------------------
+
+%% errors
+\def\bxltv@err@bad@arity{
+  \bxltv@error{Arity is too large (\the\bxltv@arity)}
+   {The arity is changed to nine.}
+}
+
+%% variables
+\let\bxltv@envname\relax
+\newcount\bxltv@arity
+\let\bxltv@filter\relax
+\newtoks\bxltv@args
+
+%%<+>\DeclareVerbInputEnvironment{<name>}
+%      [<arity>][\CSfilter]{<body>}
+% 'name' is the name of the environment to be defined
+% 'arity' is the number of arguments, including ...
+\protected\def\DeclareVerbInputEnvironment{
+  \bxltv@decl@vienv
+}
+\def\bxltv@decl@vienv#1{
+  \edef\bxltv@envname{#1}
+  \@testopt\bxltv@decl@vienv@a\@ne
+}
+\def\bxltv@decl@vienv@a[#1]{
+  \bxltv@arity=#1\relax
+  \@testopt\bxltv@decl@vienv@b!
+}
+\def\bxltv@decl@vienv@b[#1]{
+  \csedef{\bxltv@envname}{\noexpand\bxltv@begin{\bxltv@envname}}
+  \edef\bxltv@next{
+    \def\expandonce{\csname bxltv@grab@\bxltv@envname\endcsname}
+    ####1\detokenize\expandafter{\expanded{\string\end{\bxltv@envname}}}
+    {\unexpanded{\bxltv@grabbed{##1}}}}
+  \bxltv@next
+  \ifnum \bxltv@arity<1 \bxltv@arity=1 \fi
+  \ifnum \bxltv@arity>9 %
+    \bxltv@err@bad@arity
+    \bxltv@arity=9 %
+  \fi
+  \ifstrequal{#1}{!}
+   {\csletcs{bxltv@filter@\bxltv@envname}{bxltv@skim/\the\bxltv@arity}}
+   {\cslet{bxltv@filter@\bxltv@envname}{#1}}
+  \expandafter\bxltv@decl@vienv@c
+   \csname bxltv@body@\bxltv@envname\endcsname
+}
+\def\bxltv@decl@vienv@c#1#{
+  \undef#1
+  \newcommand#1[\bxltv@arity]
+}
+
+%% \bxltv@begin{<name>}
+\def\bxltv@begin#1{
+  \letcs\bxltv@grab{bxltv@grab@#1}
+  \letcs\bxltv@filter{bxltv@filter@#1}
+  \global\letcs\bxltv@g@do{bxltv@body@#1}
+  \bxltv@filter
+}
+
+%% \bxltv@do@grab
+\def\bxltv@do@grab{
+  \endlinechar=13 %
+  \luatexcatcodetable\CatcodeTableOther
+  \bxltv@grab
+}
+
+%% \bxltv@grabbed
+\def\bxltv@grabbed{
+  \expandafter\bxltv@grabbed@a\the\bxltv@args
+}
+\def\bxltv@grabbed@a{
+  \endgroup
+  \bxltv@g@do
+}
+
+%%<+> \DeclareVIEArguments
+\protected\def\DeclareVIEArguments#{
+  \bxltv@decl@vie@args
+}
+\def\bxltv@decl@vie@args#1{
+  \bxltv@args{#1}
+  \bxltv@do@grab
+}
+
+%% \[bxltv@skip/<N>]
+% Simple argument filters used as default.
+\csdef{bxltv@skim/1}
+ {\bxltv@decl@vie@args{}}
+\csdef{bxltv@skim/2}#1
+ {\bxltv@decl@vie@args{{#1}}}
+\csdef{bxltv@skim/3}#1#2
+ {\bxltv@decl@vie@args{{#1}{#2}}}
+\csdef{bxltv@skim/4}#1#2#3
+ {\bxltv@decl@vie@args{{#1}{#2}{#3}}}
+\csdef{bxltv@skim/5}#1#2#3#4
+ {\bxltv@decl@vie@args{{#1}{#2}{#3}{#4}}}
+\csdef{bxltv@skim/6}#1#2#3#4#5
+ {\bxltv@decl@vie@args{{#1}{#2}{#3}{#4}{#5}}}
+\csdef{bxltv@skim/7}#1#2#3#4#5#6
+ {\bxltv@decl@vie@args{{#1}{#2}{#3}{#4}{#5}{#6}}}
+\csdef{bxltv@skim/8}#1#2#3#4#5#6#7
+ {\bxltv@decl@vie@args{{#1}{#2}{#3}{#4}{#5}{#6}{#7}}}
+\csdef{bxltv@skim/9}#1#2#3#4#5#6#7#8
+ {\bxltv@decl@vie@args{{#1}{#2}{#3}{#4}{#5}{#6}{#7}{#8}}}
+
+%--------------------------------------- 
+
+%% \ParseAsLaTeX
+\newcommand*{\ParseAsLaTeX}[1]{
+  \directlua{bxlt.parse_as_latex("\luatexluaescapestring{#1}")}
+}
+
+%% \VIEString
+\newcommand*{\VIEString}[1]{
+  (bxlt.vie_normalize("\luatexluaescapestring{#1}"))
+}
+
+\begingroup
+\let~\string
+\endlinechar=10 %
+\directlua{
+  local cctb = luatexbase.catcodetables
+  bxlt = bxlt or {}
+  function bxlt.vie_normalize(s)
+    return s:gsub("^~\r", ""):gsub("~\r", "~\n")
+  end
+  function bxlt.parse_as_latex(s)
+    tex.sprint(cctb.latex, "~\\luatexscantextokens{")
+    tex.sprint(cctb.other, bxlt.vie_normalize(s))
+    tex.sprint(cctb.latex, "}")
+  end
+}%
+\endgroup%
+%--------------------------------------- done
+\bxltv@restore@codes
+\endinput
+%% EOF

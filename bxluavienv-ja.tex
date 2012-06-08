@@ -1,0 +1,243 @@
+% 文字コードは UTF-8
+% lualatex で組版する（LuaTeX-ja 使用）
+\documentclass[a4paper]{ltjsarticle}
+\usepackage{shortvrb}
+\newcommand{\PkgVersion}{0.2c}
+\newcommand{\PkgDate}{2012/06/05}
+\MakeShortVerb{\|}
+\newcommand{\Pkg}[1]{\textsf{#1}}
+\newcommand{\Meta}[1]{$\langle$\mbox{}#1\mbox{}$\rangle$}
+\newcommand{\Note}{\par\noindent ※}
+\newcommand{\Means}{~：\quad}
+\newcommand{\Jemph}{\textbf}
+%-----------------------------------------------------------
+\begin{document}
+\title{\Pkg{bxluavienv} パッケージ（v\PkgVersion）}
+\author{八登崇之\ （Takayuki YATO; aka.~``ZR''）}
+\date{\PkgDate}
+\maketitle
+
+%===========================================================
+\section{概要}
+\label{sec:overview}
+
+本パッケージは以下の機能を提供する。
+\begin{itemize}
+\item 中身を verbatim に処理するような{\LaTeX}環境
+  （以下「\Jemph{verbatim入力環境}」と呼ぶ）
+  を容易に定義できるようにする。
+  「環境の中身をそのままLuaの関数に渡して処理させる」
+  という用途を念頭に置いていて、この場合、
+  {\LaTeX}の範囲内で実装が可能になる。
+\end{itemize}
+
+\paragraph{前提環境}
+\begin{itemize}
+\item {\TeX}フォーマット： Lua{\LaTeX}
+\end{itemize}
+
+\paragraph{依存パッケージ}
+\begin{itemize}
+\item \Pkg{etoolbox} パッケージ
+\item \Pkg{luatexbase} パッケージ
+\end{itemize}
+
+%===========================================================
+\section{動機}
+\label{sec:motivation}
+
+例えば、
+\begin{quote}\small\begin{verbatim}
+\begin{timelinelist}
+2010,4,10,初版公開
+2010,4,11,バグ修正 \verb|(^^;|
+2011,2,1,第2版公開；Lua{\TeX}に対応
+\end{timelinelist}
+\end{verbatim}\end{quote}
+のように入力して、中身をLuaで整形して
+\begin{quote}\small\begin{list}{\textendash}{}
+\item 2010年4月10日： 初版公開
+\item 2010年4月11日： バグ修正 \verb|(^^;|
+\item 2011年2月1日： 第2版公開；Lua{\TeX}に対応
+\end{list}\end{quote}
+のように出力する環境を実装したいとする。
+この場合、環境の中身の文字列をそのまま
+（改行や |\verb| 中の特殊記号も含めて）
+Luaの処理に渡す必要がある。
+一般的には、こういう処理の実現には複雑なマクロを書く
+必要があるが、本パッケージの機能を用いると、
+この timelinelist 環境の定義
+（Luaに処理を渡す部分）は
+\begin{quote}\small\begin{verbatim}
+\DeclareVerbInputEnvironment{timelinelist}{\directlua{
+  timelinelist(\VIEString{#1}) }}
+\end{verbatim}\end{quote}
+で済ませられる。
+
+%===========================================================
+\section{パッケージの読込}
+\label{sec:load}
+
+|\usepackage| で読み込む。
+オプションはない。
+\begin{verbatim}
+\usepackage{bxluavienv}
+\end{verbatim}
+
+%===========================================================
+\section{基本的な機能}
+\label{sec:basic}
+
+\begin{itemize}
+\item |\DeclareVerbInputEnvironment{|\Meta{名前}|}[|\Meta{整数$n$}%
+  |][\命令]{|\Meta{本体}|}|\Means
+  $n−1$個の（非 verbatim な）引数を伴う、
+  「verbatim入力環境」を指定の名前で定義する。
+  環境の処理内容は本体部で指定され、
+  ここは$n$個の引数をもつ命令の定義（|\newcommand|）
+  と同様の方式で記述する。 
+  一番最後の引数（|#|$n$）は環境の中身の文字列を表し、
+  それ以外の（$n−1$個の）引数は環境に渡された実際の引数を現す。
+  $n$の既定値は1（つまり引数のない環境に対応する）である。
+  |\命令| は引数フィルタの指定を表す
+  （\ref{sec:filter}節を参照）。
+  
+\item |\VIEString{|\Meta{テキスト}|}|\Means
+  \Pkg{luacode}パッケージの |\luastring| 命令と同様に、
+  {\TeX}のトークン列をLuaの文字列リテラルの形式に変換する
+  （Luaコード記述の中で用いる）。
+
+  ただし、|\DeclareVerbInputEnvironment| の本体部で
+  「環境の中身を表す引数」に対して用いることが想定されていて、
+  「先頭に |^^M|(CR) がある場合は除去する」
+  「それ以外の |^^M|(CR) を |^^J|(LF) に変換する」
+  という加工を行う。
+\end{itemize}
+
+\Note 環境の引数はverbatimの扱いにならない。
+
+\paragraph{使用例}
+最も単純な例は\ref{sec:motivation}節のところで挙げた。
+この例の場合、Lua関数 |timelinelist(s)| は環境の中身の文字列を
+引数 |s| として渡されるので、それを加工して以下のような出力を
+|tex.print()| を用いて行えばよい。
+\begin{quote}\small\begin{verbatim}
+\begin{list}{\textendash}{}
+\item 2010年4月10日： 初版公開
+\item 2010年4月11日： バグ修正 \verb|(^^;|
+\item 2011年2月1日： 第2版公開；Lua{\TeX}に対応
+\end{list}
+\end{verbatim}\end{quote}
+
+ここでもし、
+\begin{quote}\small\begin{verbatim}
+\begin{timelinelist}{\textbullet}
+2010,4,10,初版公開
+\end{timelinelist}
+\end{verbatim}\end{quote}
+のように項目頭の記号を引数として指定可能にする場合は、
+timelinelist環境の定義を
+\begin{quote}\small\begin{verbatim}
+\DeclareVerbInputEnvironment{timelinelist}[2]{\directlua{
+  timelinelist(\luastringN{#1},\VIEString{#2}) }}
+\end{verbatim}\end{quote}
+のようにする。
+この場合、Lua関数 |timelinelist(i,s)| は引数 |i| に
+timelinelist環境の引数（項目頭の記号）を受け取ることになる。
+
+%===========================================================
+\section{引数フィルタ}
+\label{sec:filter}
+
+\begin{itemize}
+\item |\DeclareVIEArguments{|\Meta{引数列}|}|\Means
+  引数フィルタのマクロの中で使用し、
+  verbatim入力環境の本体に渡る引数を指定する。
+\end{itemize}
+
+引数フィルタ（|\DeclareVerbInputEnvironment| の第2引数）
+が無指定の場合、環境に与える引数は単純な必須引数の
+列に限られる。
+例えば、
+\begin{quote}\small\begin{verbatim}
+\DeclareVerbInputEnvironment{foobar}[3]{%
+  \showtokens{#1/#2/#3}}
+\begin{foobar}{XXX}{YYY}ZZZ\end{foobar}
+\end{verbatim}\end{quote}
+の場合、本体部では |#1|=|XXX|、|#2|=|YYY|、|#3|=|ZZZ| となる。
+
+引数フィルタを用いると、環境の引数としてオプション引数や
+その他の特殊な形式の引数
+（\Pkg{xparse}パッケージや、{\TeX}のマクロ定義を使って実現できる）
+を扱うことが可能になる。
+「引数フィルタ」とは、環境に与えられた引数列を読み取って、
+それを単純な必須引数の列に変換した上で
+verbatim入力関数の本体に渡す命令（マクロ）のことである。
+例えば、
+\begin{quote}\small\begin{verbatim}
+\newcommand{\foobarargs}[2][ABC]{%
+  \DeclareVIEArguments{{#1}{#2}}}
+\DeclareVerbInputEnvironment{foobar}[3][\foobarargs]{%
+  \showtokens{#1/#2/#3}}
+\begin{foobar}{YYY}ZZZ\end{foobar}
+\end{verbatim}\end{quote}
+というコードの場合、まず環境の引数列 |{YYY}| が
+引数フィルタに渡される、つまり |\foobarargs{YYY}| により
+\begin{quote}\small\begin{verbatim}
+\foobarargs{YYY}
+\end{verbatim}\end{quote}
+が行われる。
+すると、デフォルト引数の機構のため、
+\begin{quote}\small\begin{verbatim}
+\DeclareVIEArguments{{ABC}{YYY}}
+\end{verbatim}\end{quote}
+が実行される。
+|\DeclareVIEArguments| の引数の後に環境の中身を加えた
+\begin{quote}\small\begin{verbatim}
+{ABC}{YYY}{ZZZ}
+\end{verbatim}\end{quote}
+が本体部に渡されるという結果になる。
+
+\paragraph{使用例}
+先のtimelinelistの例で、
+項目頭の記号を「|\textendash|」を既定値とするオプション引数と
+する場合は以下のようにする。
+\begin{quote}\small\begin{verbatim}
+\newcommand*{\timelinelistargs}[1][\textendash]{%
+  \DeclareVIEArguments{{#1}}}
+\DeclareVerbInputEnvironment{timelinelist}[2][\timelinelistargs]{\directlua{
+  timelinelist(\luastring{#1},\VIEString{#2}) }}
+\end{verbatim}\end{quote}
+
+%===========================================================
+\section{その他の機能}
+\label{sec:misc}
+
+\begin{itemize}
+\item |\ParseAsLaTeX{|\Meta{文字列}|}|\Means
+  文字列を（現在のカテゴリコード設定の下で）トークン化して
+  (La){\TeX}のコードとして実行する。
+\end{itemize}
+
+この機能を使うと、「環境を命令の形式で定義する」ことができて、
+かつ環境内にverbatimなものを含めることも可能になる。
+
+\paragraph{使用例}
+次の命令はテキストを指定された色の枠囲いで出力するものであるが、
+命令に |\verb| を入れることができない。
+\begin{quote}\small\begin{verbatim}
+% \specialbox{前景色}{背景色}{テキスト}
+\newcommand{\specialbox}[3]{%
+  \fcolorbox{#1}{#2}{\Large\textcolor{#1}{#3}}}
+%\specialbox{myred}{mypink}{Lua{\TeX} \verb|^^;|} %ダメ
+\end{verbatim}\end{quote}
+次のようにverbatim引数環境として定義すればよい。
+\begin{quote}\small\begin{verbatim}
+\DeclareVerbInputEnvironment{specialbox}[3]{%
+  \fcolorbox{#1}{#2}{\Large\textcolor{#1}{\ParseAsLaTeX{#3}}}}
+\begin{specialbox}{myred}{mypink}
+Lua{\TeX} \verb|^^;|
+\end{specialbox}
+\end{verbatim}\end{quote}
+
+\end{document}

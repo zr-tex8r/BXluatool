@@ -1,0 +1,336 @@
+%
+% bxluafacade.sty
+%
+
+%% package declaration
+\input bxluatool.def
+\NeedsTeXFormat{LaTeX2e}
+\ProvidesPackage{bxluafacade}[2012/06/05 v0.2c]
+
+%% preparation
+\def\bxlfc@pkgname{bxluafacade}
+\def\bxlfc@error{\PackageError\bxlfc@pkgname}
+\if t\bxltGoodEnviron\else \endinput \fi
+
+% prerequisite packages
+\RequirePackage{luatexbase-modutils}
+% load accompanying Lua module
+\RequireLuaModule{bxluafacade}
+% resets codes
+\edef\bxlfc@restore@codes{%
+  \catcode34=\the\catcode34%
+  \catcode45=\the\catcode45%
+  \catcode46=\the\catcode46%
+  \catcode47=\the\catcode47%
+  \catcode62=\the\catcode62%
+  \catcode96=\the\catcode96%
+  \endlinechar=\the\endlinechar%
+\relax}
+\catcode34=12 % <">
+\catcode45=12 % <->
+\catcode46=12 % <.>
+\catcode47=12 % </>
+\catcode62=12 % <>>
+\catcode96=12 % <`>
+\endlinechar=-1 %
+
+%------------------- helpers
+
+%% \bxlfc@ltr
+% \bxlfc@ltr\* (where * is an arbitrary non-letter) expands
+% to the letter *.
+\def\bxlfc@ltr{\expandafter\@gobble\string}
+
+%% some unique tokens
+\protected\def\bxlfc@stop{\bxlfc@stop@}
+\protected\def\bxlfc@end{\bxlfc@end@}
+
+%------------------- quick-escape
+
+%%<*> \qesc
+% Does the following conversion ('quick-escape');
+% here it is assumed ` equals \qesc, '?' denotes any character/
+% IN:   `\?  `+ `/ `| `- `( `) `< `>  `' `"  other `?
+% OUT:    ?   #  %  \  ~  {  }  ^ \\   ` ``         ?
+\newcommand\qesc[1]{
+  \expandafter\bxlfc@qesc@a\string#1\empty\bxlfc@nil
+   #1\empty\bxlfc@nil
+}
+\def\bxlfc@qesc@a#1#2\bxlfc@nil#3#4\bxlfc@nil{
+  \if #1\bxlfc@iltr@bs #2
+  \else \bxlfc@qesc@b #1#3
+  \fi
+}
+\def\bxlfc@qesc@b#1#2{
+  \expandafter\bxlfc@qesc@c\csname bxlfc@QE/#1\endcsname#1#2
+}
+\def\bxlfc@qesc@c#1#2#3{
+  \ifx#1\relax
+    \ifcat A\noexpand#3`\fi #2
+  \else #1
+  \fi
+}
+\edef\bxlfc@ltr@bs{\bxlfc@ltr\\}
+\expandafter\let\expandafter\bxlfc@iltr@bs\bxlfc@ltr@bs
+\begingroup
+\def\bxlfc@do#1#2#3{
+  \expandafter\xdef\csname bxlfc@QE/\bxlfc@ltr#1\endcsname{
+    \bxlfc@ltr#2
+    \unless\if\noexpand#3.\bxlfc@ltr#3\fi
+  }
+}
+\bxlfc@do \+ \# .
+\bxlfc@do \/ \% .
+\bxlfc@do \| \\ .
+\bxlfc@do \- \~ .
+\bxlfc@do \( \{ .
+\bxlfc@do \) \} .
+\bxlfc@do \< \^ .
+\bxlfc@do \> \\ \\
+\bxlfc@do \' \` .
+\bxlfc@do \" \` \`
+\endgroup
+
+%%<*> \usebacktickescape
+\newcommand*\usebacktickescape{
+  \unless\ifdefined\bxlfc@restore@backtick
+    \bxlfc@init@backtick
+  \fi
+  \catcode96=13 %
+}
+
+%%<*> \nousebacktickescape
+\newcommand*\nousebacktickescape{
+  \ifdefined\bxlfc@restore@backtick
+    \catcode96=12 %
+  \fi
+}
+
+%%<*> \finishbacktickescape
+\newcommand*\finishbacktickescape{
+  \ifdefined\bxlfc@restore@backtick
+    \bxlfc@finish@backtick
+  \fi
+}
+
+%% \bxlfc@init@backtick
+\begingroup
+\catcode96=\active
+\gdef\bxlfc@init@backtick{
+  \xdef\bxlfc@restore@backtick{
+    \global\catcode96=\the\catcode96\relax
+    \global\let\noexpand`=\noexpand\bxlfc@saved@backtick
+  }
+  \global\catcode96=12 %
+  \global\let\bxlfc@saved@backtick=`\relax
+  \global\let`=\qesc
+}
+\endgroup
+%% \bxlfc@finish@backtick
+\def\bxlfc@finish@backtick{
+  \bxlfc@restore@backtick
+  \global\let\bxlfc@restore@backtick\@undefined
+}
+
+%------------------- miscellaneous
+
+%%<*> \luaescape{<text>}
+\newcommand\luaescape{} % collision check
+\let\luaescape\luatexluaescapestring
+%%<*> \luaescapeO{<text>}
+\newcommand\luaescapeO[1]{
+  \luatexluaescapestring{\unexpanded\expandafter{#1}}
+}
+%%<*> \luaescapeN{<text>}
+\newcommand\luaescapeN[1]{
+  \luatexluaescapestring{\unexpanded{#1}}
+}
+
+%%<*> \luanumber{<text>}
+\newcommand\luanumber[1]{
+  tonumber("\luatexluaescapestring{#1}")
+}
+
+%%<*> \luanumberN{<text>}
+\newcommand\luanumberN[1]{
+  tonumber("\luatexluaescapestring{\unexpanded{#1}}")
+}
+
+%%<*> \luacoutnerval{<counter>}
+\newcommand\luacounterval[1]{
+  (\expandafter\number\csname c@#1\endcsname)
+}
+
+%%<*> \lualengthval{<counter>}
+\newcommand\lualengthval[1]{
+  (bxlt.to_skip("\the#1"))
+}
+
+%--------------------------------------- value gobbler
+
+%% \bxlfc@burst-`>TEXT
+% Gets the head of TEXT expanded repeatedly until an unexpandable
+% token is seen, and if the token is a space then it is gobbled.
+\let\bxlfc@burst\romannumeral
+
+%% \bxltGobbleNum <number>
+% Gobbles a following number value (in two expansion).
+\def\bxltGobbleNum{
+  \bxlfc@burst-`>\bxlfc@gobble@num
+}
+\def\bxlfc@gobble@num{
+  \expandafter\bxlfc@gobble@num@a\the\parshapeindent
+}
+\begingroup
+  \lccode`8=`p\lccode`9=`t
+\lowercase{\endgroup
+  \def\bxlfc@gobble@num@a#189{ }
+}
+
+%% \bxltGobbleGlue <glue>
+% Gobbles a following glue value (in two expansion).
+\def\bxltGobbleGlue{%
+  \bxlfc@burst-`>\bxlfc@gobble@glue
+}
+\def\bxlfc@gobble@glue{
+  \expandafter\bxlfc@gobble@glue@a\the\glueshrinkorder
+}
+\def\bxlfc@gobble@glue@a#1{ }
+
+%% \bxltGobbleDimen <dimen>
+% Gobbles a following dimen value (in two expansion).
+\def\bxltGobbleDimen{%
+  \bxlfc@burst-`>\bxlfc@gobble@dimen
+}
+\def\bxlfc@gobble@dimen{
+  \expandafter\bxlfc@gobble@dimen@a\the\glueshrinkorder
+  0pt minus
+}
+\def\bxlfc@gobble@dimen@a#1{ }
+
+%--------------------------------------- safe parsing
+
+% These macros convert a token sequence denoting a TeX value to its
+% suitable notation in Lua, and when the argument is malformed then
+% 'nil' is returned. They are all fully-expandable.
+
+%% \bxlfc@safe@end
+  % behaves same as \relax but is distinct from it
+\def\bxlfc@safe@end{\noexpand\bxlfc@safe@end}
+
+%% \bxlfc@safe@dump
+  % An unexpandable token,
+\let\bxlfc@safe@bump\indent
+
+%% \bxlfc@safe@invalid
+% The value passed to lua instead of malformed value tokens.
+\def\bxlfc@safe@invalid{(nil)}
+
+%% \bxltSafeNum{<number>}
+% For a number (integer).
+\def\bxltSafeNum{
+  \bxlfc@safe@num@or\bxlfc@safe@invalid
+}
+\def\bxlfc@safe@num@or#1#2{
+  \expandafter\expandafter\expandafter\bxlfc@safe@num@a
+   \bxltGobbleNum#2\bxlfc@safe@end{#2}{#1}
+}
+\def\bxlfc@safe@num@a#1\bxlfc@safe@end#2#3{
+  \bxltIfblank{#1}{
+    (\number#2)
+  }{
+    #3
+  }
+}
+
+%% \bxltSafeDimen{<dimen>}
+% For a dimension. The result is a scaled-point value.
+\def\bxltSafeDimen{
+  \bxlfc@safe@dimen@or\bxlfc@safe@invalid
+}
+\def\bxlfc@safe@dimen@or#1#2{
+  \expandafter\expandafter\expandafter\bxlfc@safe@dimen@a
+   \bxltGobbleDimen#2\bxlfc@safe@end{#2}{#1}
+}
+\def\bxlfc@safe@dimen@a#1\bxlfc@safe@end#2#3{
+  \bxltIfblank{#1}{
+    (\number\dimexpr#2\relax)
+  }{
+    #3
+  }
+}
+
+%% \bxltSafeGlue{<glue>}
+% For a glue. The result is a gluespec object.
+\def\bxltSafeGlue{
+  \bxlfc@safe@glue@or\bxlfc@safe@invalid
+}
+\def\bxlfc@safe@glue@or#1#2{
+  \expandafter\expandafter\expandafter\bxlfc@safe@glue@a
+   \bxltGobbleGlue#2\bxlfc@safe@end{#2}{#1}
+}
+\def\bxlfc@safe@glue@a#1\bxlfc@safe@end#2#3{
+  \bxltIfblank{#1}{
+    (luatexja.base.to_skip("\the\glueexpr#2\relax"))
+  }{
+    #3
+  }
+}
+
+\def\bxltSafeNumexpr{
+  \bxlfc@safe@numexpr@or\bxlfc@safe@invalid
+}
+\def\bxlfc@safe@numexpr@or#1#2{
+  \expandafter\expandafter\expandafter\bxlfc@safe@numexpr@a
+   \bxltGobbleNum\numexpr#2\bxlfc@safe@bump{#2}{#1}
+}
+\def\bxlfc@safe@numexpr@a#1\bxlfc@safe@bump#2#3{
+  \bxltIfblank{#1}{
+    (\the\numexpr#2)
+  }{
+    #3
+  }
+}
+
+\def\bxltSafeDimexpr{
+  \bxlfc@safe@dimexpr@or\bxlfc@safe@invalid
+}
+\def\bxlfc@safe@dimexpr@or#1#2{
+  \expandafter\expandafter\expandafter\bxlfc@safe@dimexpr@a
+   \bxltGobbleDimen\numexpr#2\bxlfc@safe@bump{#2}{#1}
+}
+\def\bxlfc@safe@dimexpr@a#1\bxlfc@safe@bump#2#3{
+  \bxltIfblank{#1}{
+    (\the\dimexpr#2)
+  }{
+    #3
+  }
+}
+
+\def\bxltSafeGlueexpr{
+  \bxlfc@safe@glueexpr@or\bxlfc@safe@invalid
+}
+\def\bxlfc@safe@glueexpr@or#1#2{
+  \expandafter\expandafter\expandafter\bxlfc@safe@glueexpr@a
+   \bxltGobbleDimen\numexpr#2\bxlfc@safe@bump{#2}{#1}
+}
+\def\bxlfc@safe@glueexpr@a#1\bxlfc@safe@bump#2#3{
+  \bxltIfblank{#1}{
+    (\the\glueexpr#2)
+  }{
+    #3
+  }
+}
+
+
+%% \bxlfc@safe@real{<real>}
+% For a real number given in decimal notation or a macro that
+% expands to such notation.
+\def\bxlfc@safe@@real#1{
+  (tonumber("\luatexluaescapestring{#1}"))
+}
+
+%--------------------------------------- done
+\bxlfc@restore@codes
+\endinput
+%% EOF

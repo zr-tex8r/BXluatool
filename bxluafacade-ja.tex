@@ -1,0 +1,267 @@
+% 文字コードは UTF-8
+% lualatex で組版する（LuaTeX-ja 使用）
+\documentclass[a4paper]{ltjsarticle}
+\usepackage{shortvrb}
+\newcommand{\PkgVersion}{0.2c}
+\newcommand{\PkgDate}{2012/06/05}
+\MakeShortVerb{\|}
+\newcommand{\Pkg}[1]{\textsf{#1}}
+\newcommand{\Meta}[1]{$\langle$\mbox{}#1\mbox{}$\rangle$}
+\newcommand{\Note}{\par\noindent ※}
+\newcommand{\Means}{~：\quad}
+\newcommand{\Expl}{\par\noindent 例：\ }
+\newcommand{\Jemph}{\textbf}
+\newcommand{\Typ}[1]{\textsl{#1}}
+\newcommand{\Var}[1]{\textit{#1}}
+\newcommand{\NumberT}{\Typ{number}}
+\newcommand{\NumVar}{\NumberT\ \Var}
+\newcommand{\StringT}{\Typ{string}}
+\newcommand{\StrVar}{\StringT\ \Var}
+\newcommand{\BooleanT}{\Typ{boolean}}
+\newcommand{\BoolVar}{\BooleanT\ \Var}
+\newcommand{\TableT}{\Typ{table}}
+\newcommand{\TabVar}{\TableT\ \Var}
+\newcommand{\GluespecT}{\Typ{gluespec}}
+\newcommand{\GlueVar}{\GluespecT\ \Var}
+%-----------------------------------------------------------
+\begin{document}
+\title{\Pkg{bxluafacade} パッケージ（v\PkgVersion）}
+\author{八登崇之\ （Takayuki YATO; aka.~``ZR''）}
+\date{\PkgDate}
+\maketitle
+
+%===========================================================
+\section{概要}
+\label{sec:overview}
+
+本パッケージは以下の機能を提供する。
+\begin{itemize}
+\item {\LaTeX}上の多少複雑な処理をLuaプログラムを用いて
+  解決する際に、必要となる機能を用意する。
+\item 主に、{\LaTeX}とLuaの間のインタフェースに関わる
+  機能である。
+\item 従って、本パッケージは{\LaTeX}とLuaの知識さえあれば、
+  {\TeX}の知識がなくとも使えるようにすることを目指す。
+\end{itemize}
+
+\paragraph{前提環境}
+\begin{itemize}
+\item {\TeX}フォーマット： Lua{\LaTeX}
+\end{itemize}
+
+\paragraph{依存パッケージ}
+\begin{itemize}
+\item \Pkg{etoolbox} パッケージ
+\item \Pkg{luatexbase} パッケージ
+\end{itemize}
+
+%===========================================================
+\section{パッケージの読込}
+\label{sec:load}
+
+|\usepackage| で読み込む。
+オプションはない。
+\begin{verbatim}
+\usepackage{bxluafacade}
+\end{verbatim}
+
+%===========================================================
+\section{基本的な機能（{\LaTeX}側）}
+\label{sec:basic-latex}
+
+本節の説明中の「例」においては以下に示す定義が
+行われていることを前提とする。
+
+\begin{quote}\small\begin{verbatim}
+\newcommand*{\macroA}{\macroB}
+\newcommand*{\macroB}{I'd}
+\newcommand*{\Answer}{42}
+\newcounter{answer} \setcounter{answer}{42}
+\newlength{\sample} \setlength{\sample}{1ptplus1pt}
+\end{verbatim}\end{quote}
+
+\begin{itemize}
+\item |\luaescape{|\Meta{テキスト}|}|\Means
+  |\luastring| と同様に、
+  引数（完全展開する）を文字列化したものに
+  Lua文字列リテラルのためのエスケープを施すが、
+  |" "| では囲わない。
+  \Expl |s = "\luaescape{\macroA}"|
+        →（展開：|s = "I\'d"|）
+        → |s| は ``|I'd|''
+\item |\luaescapeO{|\Meta{テキスト}|}|\Means
+  |\luastringO| と同様に、
+  引数（一回展開する）を文字列化したものに
+  Lua文字列リテラルのためのエスケープを施すが、
+  |" "| では囲わない。
+  \Expl |s = "\luaescapeO{\macroA}"|
+        →（展開：|s = "\\macroB "|）
+        → |s| は ``|\macroB |''
+\item |\luaescapeN{|\Meta{テキスト}|}|\Means
+  |\luastringN| と同様に、
+  引数（展開しない）を文字列化したものに
+  Lua文字列リテラルのためのエスケープを施すが、
+  |" "| では囲わない。
+  \Expl |s = "\luaescapeN{\macroA}"|
+        →（展開：|s = "\\macroA "|）
+        → |s| は ``|\macroA |''
+\item |\luanumber{|\Meta{数値}|}|\Means
+  引数（完全展開される）をLuaで数値として扱う式に変換する。
+  引数が直接数字列で書かれた数値でない場合はnilと解釈される。
+  \Expl |n = \luanumber{\Answer}|
+        →（展開：|n = tonumber("42")|）
+        → |n| は42
+  \Expl |n = \luanumber{6*9}|
+        →（展開：|n = tonumber("6*9")|）
+        → |n| はnil
+  \Expl |n = \luanumber{\value{answer}}|
+        →（展開：|n = tonumber("\c@answer ")|）
+        → |n| はnil
+\item |\luanumberN{|\Meta{数値}|}|\Means
+  引数（展開しない）をLuaで数値として扱う式に展開する。
+  引数が直接数字列で書かれた数値でない場合はnilと解釈される。
+  \Expl |n = \luanumberN{\Answer}|
+        →（展開：|n = tonumber("\Answer ")|）
+        → |n| はnil
+  \Expl |n = \luanumberN{3.14159}|
+        →（展開：|n = tonumber("3.14159")|）
+        → |n| は3.14159
+\item |\luacounterval{|\Meta{カウンタ名}|}|\Means
+  {\LaTeX}カウンタの現在の値をLuaで数値として扱う式に展開する。
+  \Expl |n = \luacounterval{answer}|
+        →（展開：|n = (42)|）
+        → |n| は42
+\item |\lualengthval{\長さ変数名}|\Means
+  長さ変数の現在の値をLuaでグル―値（gluespec）
+  として扱う式に展開する。
+  \Expl |g = \lualengthval{\sample}|
+        →（展開：|g = bxlt.to_skip("1pt plus 1pt")|）
+        → |g| は「1pt plus 1pt」を表すgluespec
+\end{itemize}
+
+%===========================================================
+\section{基本的な機能（Lua側）}
+\label{sec:basic-lua}
+
+\begin{itemize}
+\item |bxlt.print(|[\NumVar{c}|,|] \StrVar{s}|,| |...)|\Means
+  引数の各文字列を改行文字（|'\n'|）毎に分割して\ 
+  |tex.print(|[\Var{c}|,|] |...)| に渡す
+  （文字列の末尾の改行は無視する）。 
+  結果的に、文字列の中の各行が{\TeX}の1つの入力行と扱われる。
+  \Expl 例えば |tex.print("A%B\nC")|
+  は「A」しか出力しないが、
+  |bxlt.print("A%B\nC")|
+  は |tex.print("A%B", "C")|
+  と同じで「A C」と出力する。
+\item |bxlt.printf(|[\NumVar{c}|,|] \StrVar{f}|,| |...)|\Means
+  書式付で{\TeX}にテキスト出力（print版）。
+  |bxlt.print(|[\Var{c}|,|] |string.format(|\Var{f}|,| |...)|
+  と同じ。
+  \Expl |bxlt.printf("%02X", 42)|
+  は「|2A|」を{\TeX}に書き出す。
+\item |bxlt.writef(|[\NumVar{c}|,|] \StrVar{f}|,| |...)|\Means
+  書式付で{\TeX}に文字列出力（write版）。
+  |tex.write(|[\Var{c}|,|] |string.format(|\Var{f}|,| |...)|
+  と同じ。
+  \Expl |bxlt.writef("[%s]", "C#")|
+  はverbatimに（カテゴリコード12で）|[C#]| を{\TeX}に書き出す。
+\item |bxlt.sprintf(|[\NumVar{c}|,|] \StrVar{f}|,| |...)|\Means
+  書式付で{\TeX}にテキスト出力（sprint版）。
+  \footnote{C言語の \texttt{sprintf()} に相当するのは\ 
+    \texttt{string.format()}。}
+  |bxlt.sprint(|[\Var{c}|,|] |string.format(|\Var{f}|,| |...)|
+  と同じ。
+\item (1) \NumVar{sp} |=| |bxlt.to_dimen(nil)|\\
+  (2) \NumVar{sp} |=| |bxlt.to_dimen(|\NumVar{d}|)|\\
+  (3) \NumVar{sp} |=| |bxlt.to_dimen(|\StrVar{d}|)|\Means
+  長さの表現を、sp単位の整数値に変換する。
+  (1)は0を返す。
+  (2)は\Var{d}をそのまま返す。
+  (3)は\Var{d}を{\TeX}での長さ表記（単位付き数値）として
+  解釈してsp単位の整数値を返す。
+  \Expl |sp = bxlt.to_dimen(26214)| → |sp| は26214。
+  \Expl |sp = bxlt.to_dimen("1cm")| → |sp| は1864679。
+\item (1) \GlueVar{gs} |=| |bxlt.to_skip(nil)|\\
+  (2) \GlueVar{gs} |=| |bxlt.to_skip(|\NumVar{s}|)|\\
+  (3) \GlueVar{gs} |=| |bxlt.to_skip(|\GlueVar{s}|)|\\
+  (4) \GlueVar{gs} |=| |bxlt.to_skip(|\StrVar{s}|)|\Means
+  グル―値（伸縮する長さ）の表現を、gluespecに変換する。
+  (1)は「0pt」のgluespecを返す。
+  (2)は「\Var{s}\,sp」のgluespecをそのまま返す。
+  (3)は\Var{s}自身を返す。
+  (4)は\Var{s}を{\TeX}でのグル―値表記として
+  解釈して結果のgluespecを返す。
+  \Expl |sp = bxlt.to_skip(16384)| → |sp| は「0.25pt」のgluespec。
+  \Expl |sp = bxlt.to_dimen("1pt minus .1pt")| → |sp| は「1pt minus 0.1pt」のgluespec。
+\end{itemize}
+
+%===========================================================
+\section{Quick-escape}
+\label{sec:quick}
+\newcommand*{\XOth}{\underline{\texttt{*}}}
+\newcommand*{\XLtr}{\underline{\texttt{a}}}
+
+{\LaTeX}コード中で |\directlua| でLuaコードを記述する場合、
+{\LaTeX}の特殊文字（|\| や |%|）
+はその特殊な意味を保つので、
+そのままでは記述することができない。
+その場合はできるだけ別ファイル（Luaソースファイル）に
+Luaコードを移動するか、あるいは、
+\Pkg{luacode}パッケージが提供する |luacode*| 関数を
+利用することが通常の方法である。
+
+しかし、場合によっては |\directlua| の中に
+特殊文字を書けた方が便利であると考える人もいるであろう。
+Quick-escapeはそのような要求を満たすための機能である。
+
+Quick-escapeを有効にすると、Backtick記号〈|`|〉と
+その後に続く1つのトークンについて、
+以下の変換が行われる。
+（{\XLtr} は任意のASCII英字、{\XOth} は任意のASCII非英字を表す。）
+\begin{itemize}
+\item |`\|{\XOth} は {\XOth} に展開される。
+  よって、任意の{\LaTeX}特殊文字（全てASCII非英字である）
+  について、前に |`\| を前置することでLuaコードに含めることができる。
+  \Expl |("[`\%3d]`\\n", `\#str)| → |("[%3d]\n", #str)|
+\item |`|{\XLtr} は |`|{\XLtr} に展開される。
+  \Expl |p("`Yes!'")| → |p("`Yes!'")|
+\item |`|{\XOth} の組み合わせのうち一部は以下のように変換される。
+  \begin{center}
+  \newcommand{\?}[1]{\texttt{\symbol{`#1}}}
+  \begin{tabular}{*8{c}}
+    \?\+ & \?\& & \?\| & \?\- & \?\( & \?\) & \?\< & \?\> \\
+    ↓ & ↓ & ↓ & ↓ & ↓ & ↓ & ↓ & ↓ \\
+    \?\# & \?\% & \?\\ & \?\~ & \?\{ & \?\} & \?\^ & \?\\\?\\ \\
+  \end{tabular}
+  \end{center}
+  例： |p("`>def`-`+1`(`)")| → |p("\\def~#1{}")|
+\item 以上に挙げたもの以外の組み合わせについては未定義である。
+\end{itemize}
+
+Quick-escapeは既定では無効になっている。
+以下の命令を用いて有効／無効を切り替える。
+\begin{itemize}
+\item |\usequickescape|\Means
+  Quick-escapeを有効にする。
+  \Note |`| のカテゴリコードを（ローカルに）13にする。
+  初回の実行では以下の初期化処理がグローバルに行われる：
+  アクティブな |`| を |\qesc| と等価にし、
+  |`| のカテゴリコードを12にする。
+\item |\nousequickescape|\Means
+  Quick-escapeを無効にする。
+  \Note |`| のカテゴリコードを（ローカルに）12にする。
+\item |\finishquickescape|\Means
+  Quick-escapeの使用を終了。
+  \Note アクティブな |`| の意味と |`| のカテゴリコードを
+  初期化処理の直前の状態にグローバルに戻す。
+  これを実行してしまうと、
+  それまでquick-escapeを用いて定義していた命令（マクロ）
+  が正しく動作しなくなることに注意せよ。
+\item |\qesc|\Means
+  Quick-escapeの処理の実体。
+  Quick-escapeが無効の場合でも、|`| の代わりに |\qesc|
+  を用いてquick-escapeが実行できる。
+\end{itemize}
+
+\end{document}

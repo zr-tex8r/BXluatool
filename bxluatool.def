@@ -1,0 +1,166 @@
+% bxluatool.def
+
+\csname\if11bxluatooldefLoaded\fi\endcsname
+\edef\x{%
+\catcode32=\the\catcode32%
+\catcode33=\the\catcode33%
+\catcode35=\the\catcode35%
+\catcode40=\the\catcode40%
+\catcode41=\the\catcode41%
+\catcode44=\the\catcode44%
+\catcode45=\the\catcode45%
+\catcode46=\the\catcode46%
+\catcode60=\the\catcode60%
+\catcode61=\the\catcode61%
+\catcode64=\the\catcode64%
+\catcode91=\the\catcode91%
+\catcode93=\the\catcode93%
+\catcode126=\the\catcode126%
+\endlinechar=\the\endlinechar
+\relax}
+\catcode32=10 %< >
+\catcode33=12 %<">
+\catcode35=6  %<#>
+\catcode40=12 %<(>
+\catcode41=12 %<)>
+\catcode44=12 %<,>
+\catcode45=12 %<->
+\catcode46=12 %<.>
+\catcode60=12 %<<>
+\catcode61=12 %<=>
+\catcode64=11 %<@>
+\catcode91=12 %<[>
+\catcode93=12 %<]>
+\catcode126=13 %<~>
+\endlinechar=13 %
+\edef\bxlt@bxluatooldef@restore@codes{\x
+  \let\noexpand\bxlt@bxluatooldef@restore@codes\relax}
+\def\bxluatooldefLoaded{\endinput}
+
+%% error messages
+\def\bxlt@pkgname{BXluatool}
+\def\bxlt@eh{%
+  Package loading is aborted right now.%
+}
+\edef\bxlt@fatal#1{%
+  \noexpand\PackageError{\bxlt@pkgname}{#1}{\bxlt@eh}%
+}
+
+%%------------------ environment check
+
+% Here the following conditions are checked.
+% - The format is either plain or LaTeX2e.
+% - The engine is LuaTeX of version >= 0.65.
+% If the check fails, loading of this file will be aborted.
+
+%%<+> \bxltGoodEnviron
+% Whether the check passed. The value is an implicit letter
+% t (for true) or f (for false).
+
+%%<+> \bxltFormat
+% What the format is. The value is an implicit letter
+% p (for plain) or l (for latex).
+
+%%<+> \bxltRequireLaTeX
+% If the format is not LaTeX then complains and sets f
+% to \bxltGoodEnviron
+
+%% Sets \bxlt@format
+\begingroup
+\let\bxlt@format=0
+\edef\bxlt@fmtname{\fmtname}
+\def\bxlt@@plain{plain}
+\def\bxlt@@LaTeXe{LaTeX2e}
+\ifx\bxlt@fmtname\bxlt@plain
+  \let\bxlt@format=p
+\else\ifx\bxlt@fmtname\bxlt@LaTeXe
+  \let\bxlt@format=l
+\fi\fi
+\ifx\bye\@undefined\else
+  \let\bxlt@format=p
+\fi
+\ifx\@latex@error\@undefined\else
+  \let\bxlt@format=l
+\fi
+\global\let\bxltFormat=\bxlt@format
+\endgroup
+
+\let\bxltGoodEnviron=t
+\let\bxltRequireLaTeX\relax
+\if 0\bxltFormat
+  \let\bxltGoodEnviron=f
+  \errhelp\expandafter{\bxlt@eh}
+  \errmessage{Unknown format}
+  \expandafter\bxlt@bxluatooldef@restore@codes
+\expandafter\endinput\fi\relax
+\if p\bxltFormat
+  \input miniltx.tex
+  \def\bxltRequireLaTeX{%
+    \let\bxltGoodEnviron=f
+    \bxlt@fatal{This package requires LaTeX}%
+  }%
+\fi
+
+%% Checks if the engine is LuaTeX.
+\ifx\luatexversion\@undefined
+  \let\bxltGoodEnviron=f
+  \bxlt@fatal{LuaTeX is required}%
+\else\ifnum\luatexversion<65
+  \let\bxltGoodEnviron=f
+  \bxlt@fatal{This LuaTeX is too old (<v0.65)}%
+\fi\fi
+
+%% Bombs out if the test failed.
+\if t\bxltGoodEnviron\else
+  \expandafter\bxlt@bxluatooldef@restore@codes
+\expandafter\endinput\fi\relax
+
+%%------------------ helpers for plain
+
+% The commands in this section are mainly intended
+% for use in plain-compatible packages.
+
+%% \bxlt@qempty / \bxlt@end
+% Unique tokens.
+\protected\def\bxlt@qempty{\noexpand\bxlt@qempty@}
+\protected\def\bxlt@end{\noexpand\bxlt@end@}
+
+%%<+> \bxltLetcs / \bxltCslet / \bxltCsletcs
+% Same as commands in etoolbox.
+\protected\def\bxltLetcs#1#2{
+  \expandafter\let\expandafter#1\csname#2\endcsname
+}
+\protected\def\bxltCslet#1#2{
+  \expandafter\let\csname#1\endcsname#2
+}
+\protected\def\bxltCsletcs#1#2{
+  \expandafter\let\csname#1\expandafter\endcsname
+  \csname#2\endcsname
+}
+
+%% \bxltIfstrempty / \bxltIfblank
+% Same as commands in etoolbox.
+\long\def\bxltIfstrempty#1{
+  \bxltIfx{\bxlt@qempty#1\bxlt@qempty}
+}
+\long\def\bxltIfblank#1{
+  \bxlt@if@blank@a#1\bxlt@qempty\bxlt@qempty
+   \@secondoftwo\@firstoftwo\bxlt@end
+}
+\long\def\bxlt@if@blank@a#1#2\bxlt@qempty#3#4#5\bxlt@end{
+  #4
+}
+
+%%------------------ other helpers
+
+%%<+> \bxltIfx{<sutff>}{<yes>}{<no>}
+% Does \ifx<stuff> test in LaTeX style.
+\long\def\bxltIfx#1{
+  \ifx#1\expandafter\ltx@firstoftwo
+  \else\expandafter\ltx@secondoftwo\fi
+}
+
+%%------------------ all done
+\bxlt@bxluatooldef@restore@codes
+\endinput
+%% EOF

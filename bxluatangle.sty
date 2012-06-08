@@ -1,0 +1,138 @@
+%
+% bxluatangle.sty
+%
+
+%% package declaration
+\NeedsTeXFormat{LaTeX2e}
+\ProvidesPackage{bxluatangle}[2012/06/05 v0.2c]
+\input{bxluatool.def}
+\bxltRequireLaTeX
+
+%% preparation
+\def\bxltg@pkgname{bxluatangle}
+\def\bxltg@error{\PackageError\bxltg@pkgname}
+% prerequisite packages
+\RequirePackage{luatexbase-modutils}
+\RequirePackage{luatexbase-cctb}
+\RequirePackage{luacode}
+\RequirePackage{bxluavienv}
+% load accompanying Lua module
+\RequireLuaModule{bxluatangle}
+
+%% variables
+\newif\ifbxltg@autoresume \bxltg@autoresumefalse
+
+%% code guards
+\edef\bxltg@restore@codes{%
+\catcode33=\the\catcode33%
+\catcode34=\the\catcode34%
+\catcode45=\the\catcode45%
+\catcode46=\the\catcode46%
+\catcode47=\the\catcode47%
+\catcode58=\the\catcode58%
+\catcode60=\the\catcode60%
+\catcode62=\the\catcode62%
+\catcode94=\the\catcode94%
+\catcode126=\the\catcode126%
+\endlinechar=\the\endlinechar%
+\relax}
+\catcode33=12% <!>
+\catcode34=12% <">
+\catcode45=12% <->
+\catcode46=12% <.>
+\catcode47=12% </>
+\catcode58=12% <:>
+\catcode60=12% <<>
+\catcode62=12% <>>
+\catcode94=7% <^>
+\catcode126=13% <~>
+\endlinechar=-1 %
+
+%---------------------------------------
+
+%% \bxltg@do@resume
+\def\bxltg@do@resume{
+  \directlua{bxlt.tangle_resume()}
+}
+
+%% \bxltg@@continue
+\def\bxltg@@continue{
+  \bxltg@do@resume
+}
+%% \bxltg@@continue@safe
+\def\bxltg@@continue@safe{
+  \bxltg@autoresumetrue
+}
+%% \bxltg@@suspend@safe
+\def\bxltg@@suspend@safe{
+  \bxltg@autoresumetrue
+  \@gobble
+}
+
+%% \bxltg@safe@resume
+\def\bxltg@safe@resume{
+  \ifbxltg@autoresume \expandafter\@firstofone
+  \else \expandafter\@gobble
+  \fi{
+    \bxltg@autoresumefalse
+    \bxltg@do@resume
+    \bxltg@safe@resume
+  }
+}
+
+%%<*> \tangleresume
+\newcommand*\tangleresume{
+  \ifbxltg@autoresume \expandafter\@firstoftwo
+  \else \expandafter\@secondoftwo
+  \fi{
+    \bxltg@autoresumefalse
+    \bxltg@do@resume
+    \bxltg@safe@resume
+  }{
+    \bxltg@do@resume
+  }
+}
+
+%---------------------------------------
+
+%% \bxltg@tangle@luaexec
+\def\bxltg@tangle@luaexec#1{
+  \bxltg@autoresumefalse
+  \bxltg@luaexec{
+    bxlt._tangle_execute_safe(function() %
+      #1 %
+    end)
+  }
+  \bxltg@safe@resume
+}
+\ifdefined\luacode@dbg@exec
+  \let\bxltg@luaexec\luacode@dbg@exec
+\else
+  \let\bxltg@luaexec\luadirect
+\fi
+
+%%<*> \tangleluaexec{<code>}
+\newcommand{\tangleluaexec}{
+  \bxltg@tangle@luaexec
+}
+
+%% tangleluacode*
+\DeclareVerbInputEnvironment{tangleluacode*}{
+  \edef\bxltg@code{\directlua{
+    bxlt._parse_as_string(\VIEString{#1})
+  }}
+  \expandafter\bxltg@tangle@luaexec\expandafter{\bxltg@code}
+}
+
+%% tangleluacode
+\DeclareVerbInputEnvironment{tangleluacode}{
+  \edef\bxltg@code{\directlua{
+    bxlt._parse_as_soft_string(\VIEString{#1})
+  }}
+  \expandafter\bxltg@tangle@luaexec\expandafter{\bxltg@code}
+}
+
+%--------------------------------------- done
+\bxltg@restore@codes
+\endinput
+%% EOF
